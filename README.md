@@ -10,6 +10,19 @@ Works **100% offline** with built-in local Whisper, or use the OpenAI Whisper AP
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/home.png" width="300" alt="Home — Ready to record">
+  <img src="assets/screenshots/settings.png" width="300" alt="Settings — Recording & Behavior">
+</p>
+<p align="center">
+  <img src="assets/screenshots/settings-vad.png" width="300" alt="Settings — VAD & Wake Word">
+  <img src="assets/screenshots/settings-whisper.png" width="300" alt="Settings — Local Whisper">
+</p>
+
+---
+
 ## Features
 
 ### Voice-to-Text for Claude
