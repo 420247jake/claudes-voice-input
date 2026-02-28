@@ -246,6 +246,7 @@ function setupIPCListeners() {
     isRecording = false;
     wakeWordTriggered = false;
     vadGracePeriod = false;
+    if (vadCheckInterval) { clearInterval(vadCheckInterval); vadCheckInterval = null; }
     if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null; }
     stopRecordingTimer();
     document.getElementById('micIcon').classList.remove('recording');
@@ -517,6 +518,11 @@ async function startRecording() {
 
     visualizeAudio();
 
+    // Start VAD on a setInterval so it keeps running when the window is in the background.
+    // requestAnimationFrame is throttled/paused by Chromium when not visible.
+    if (vadCheckInterval) clearInterval(vadCheckInterval);
+    vadCheckInterval = setInterval(vadCheck, 30); // ~33 checks/sec
+
     // Setup MediaRecorder (always, for API Whisper fallback)
     mediaRecorder = new MediaRecorder(mediaStream, {
       mimeType: 'audio/webm;codecs=opus'
@@ -550,16 +556,15 @@ async function startRecording() {
   }
 }
 
-function visualizeAudio() {
-  if (!isRecording || !analyser) return;
-
+// Reads analyser frequency data and returns speech-band + display levels
+function getAudioLevels() {
+  if (!analyser) return null;
   const dataArray = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(dataArray);
 
   // Full-band level for the visual audio bar (shows all sound)
   const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
   const displayLevel = Math.min(100, (average / 128) * 100);
-  document.getElementById('audioLevel').style.width = displayLevel + '%';
 
   // Speech-band level for VAD (300-3000 Hz only)
   // Ambient noise (fans, HVAC, PC) is mostly below 300 Hz — filtering it out
@@ -574,6 +579,29 @@ function visualizeAudio() {
   }
   const speechBins = highBin - lowBin + 1;
   const level = Math.min(100, ((speechSum / speechBins) / 128) * 100);
+
+  return { displayLevel, level, lowBin, highBin };
+}
+
+// Visual-only loop — updates the audio level bar in the UI.
+// Uses requestAnimationFrame (throttled when window is hidden, which is fine for visuals).
+function visualizeAudio() {
+  if (!isRecording || !analyser) return;
+  const levels = getAudioLevels();
+  if (levels) {
+    document.getElementById('audioLevel').style.width = levels.displayLevel + '%';
+  }
+  if (isRecording) requestAnimationFrame(visualizeAudio);
+}
+
+// VAD logic — runs on setInterval so it keeps working when the window is in the background.
+// requestAnimationFrame is throttled/paused by Chromium when the window isn't visible,
+// which caused VAD silence detection to freeze until the user clicked the window.
+function vadCheck() {
+  if (!isRecording || !analyser) return;
+  const levels = getAudioLevels();
+  if (!levels) return;
+  const { level, displayLevel, lowBin, highBin } = levels;
 
   // Noise floor calibration using speech-band level
   if (!noiseFloorCalibrated) {
@@ -601,7 +629,7 @@ function visualizeAudio() {
       threshold = Math.max(configThreshold, adaptiveThreshold);
     }
 
-    // Debug: log VAD state every ~2 seconds
+    // Debug: log VAD state every ~2 seconds (~60 ticks at 30ms interval)
     if (++vadLogCounter % 60 === 0) {
       const qt = lastSoundTime > 0 ? Date.now() - lastSoundTime : -1;
       log(`VAD: speech-lvl=${level.toFixed(1)} display-lvl=${displayLevel.toFixed(1)} threshold=${threshold.toFixed(1)}${noiseFloorCalibrated ? ` floor=${calibratedNoiseFloor.toFixed(1)}` : ''} speech=${speechDetected} quietMs=${qt}`);
@@ -633,11 +661,15 @@ function visualizeAudio() {
       }
     }
   }
-
-  if (isRecording) requestAnimationFrame(visualizeAudio);
 }
 
 async function stopRecording() {
+  // Stop VAD interval
+  if (vadCheckInterval) {
+    clearInterval(vadCheckInterval);
+    vadCheckInterval = null;
+  }
+
   // Disconnect PCM capture
   if (scriptProcessor) {
     scriptProcessor.disconnect();
