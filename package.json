@@ -1,0 +1,46 @@
+{
+  "name": "claudes-voice-input",
+  "version": "3.4.0",
+  "description": "Full-featured voice input for Claude Desktop with Whisper API + Built-in Local Whisper (no Python needed)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "electron-store": "^8.1.0",
+    "node-global-key-listener": "^0.3.0",
+    "node-record-lpcm16": "^1.0.1",
+    "onnxruntime-node": "^1.21.0",
+    "openai": "^4.20.0",
+    "wavefile": "^11.0.0"
+  },
+  "devDependencies": {
+    "electron": "28.0.0",
+    "electron-builder": "24.9.1"
+  },
+  "build": {
+    "appId": "com.claudesvoiceinput",
+    "productName": "Claudes Voice Input",
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "ClaudesVoiceInput-v${version}.exe"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "models/**/*",
+      "sox/**/*"
+    ],
+    "asarUnpack": [
+      "models/**",
+      "sox/**",
+      "node_modules/onnxruntime-node/**",
+      "node_modules/node-global-key-listener/**"
+    ]
+  }
+}

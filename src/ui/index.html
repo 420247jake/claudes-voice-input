@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude's Voice Input</title>
+  <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #1a1816;
+      --bg-secondary: #211f1c;
+      --bg-card: #2a2521;
+      --bg-hover: #3d3530;
+      --border-color: rgba(212, 197, 185, 0.1);
+      --text-primary: #e8ddd4;
+      --text-secondary: #b8a99c;
+      --text-muted: #7a6f65;
+      --accent: #dc6b4a;
+      --accent-hover: #e8836a;
+      --success: #7cb97c;
+      --warning: #d4a556;
+      --danger: #c75f5f;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(145deg, #1a1816 0%, #2d2926 100%);
+      color: var(--text-primary);
+      overflow: hidden;
+      user-select: none;
+      height: 100vh;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Titlebar */
+    .titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(0,0,0,0.3);
+      -webkit-app-region: drag;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .titlebar-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .titlebar-title i { color: #dc6b4a; }
+
+    .titlebar-buttons {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-minimize { background: var(--warning); }
+    .btn-close { background: var(--danger); }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .tab-btn.active { color: #dc6b4a; border-bottom-color: #dc6b4a; }
+    .tab-btn i { font-size: 16px; }
+
+    /* Main Content */
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .tab-page { display: none; }
+    .tab-page.active { display: block; }
+
+    /* Recording Section */
+    .recording-section {
+      text-align: center;
+      padding: 30px 20px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .mic-icon {
+      width: 90px;
+      height: 90px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, #3d3530, #2a2521);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(212, 197, 185, 0.15);
+      transition: all 0.3s;
+    }
+
+    .mic-icon i { font-size: 32px; color: #9b8b7d; transition: all 0.3s; }
+
+    .mic-icon.recording {
+      background: linear-gradient(135deg, #dc6b4a, #c4553a);
+      border-color: #dc6b4a;
+      box-shadow: 0 0 40px rgba(220, 107, 74, 0.5);
+      animation: pulse 1s infinite;
+    }
+
+    .mic-icon.recording i { color: white; }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .status-text { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    
+    .recording-timer {
+      font-family: 'SF Mono', monospace;
+      font-size: 24px;
+      color: #dc6b4a;
+      margin-bottom: 8px;
+      display: none;
+    }
+    
+    .recording-timer.active { display: block; }
+
+    .hotkey-hint { font-size: 12px; color: var(--text-muted); }
+
+    .hotkey-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--bg-hover);
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 11px;
+      border: 1px solid var(--border-color);
+    }
+
+    /* Audio Level */
+    .audio-level-container {
+      display: none;
+      width: 80%;
+      height: 6px;
+      margin: 16px auto 0;
+      background: var(--bg-primary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .audio-level {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7cb97c, #d4a556, #dc6b4a);
+      border-radius: 3px;
+      transition: width 0.05s;
+    }
+
+    /* Transcription Preview */
+    .transcription-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .transcription-card h3 {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .transcription-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      min-height: 40px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .transcription-text.has-text { color: var(--text-primary); }
+
+    /* Quick Stats */
+    .quick-stats {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-value { font-size: 18px; font-weight: 700; color: #dc6b4a; }
+    .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Settings Styles */
+    .settings-group {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .settings-group-title {
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-group-title i { color: #dc6b4a; }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+
+    .setting-label { font-size: 13px; flex-shrink: 1; min-width: 0; }
+    .setting-label small { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .setting-select, .toggle, .hotkey-capture, .setting-input { flex-shrink: 0; }
+
+    /* Toggle Switch */
+    .toggle {
+      width: 44px;
+      height: 24px;
+      background: #3d3530;
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .toggle.active { background: linear-gradient(135deg, #dc6b4a, #c4553a); }
+
+    .toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+
+    .toggle.active .toggle-knob { transform: translateX(20px); }
+
+    /* Select Dropdown */
+    .setting-select {
+      padding: 8px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      min-width: 140px;
+      max-width: 200px;
+      cursor: pointer;
+    }
+
+    .setting-select:focus { outline: none; border-color: #dc6b4a; }
+
+    /* Input */
+    .setting-input {
+      padding: 8px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      width: 120px;
+    }
+
+    .setting-input:focus { outline: none; border-color: #dc6b4a; }
+
+    /* API Keys List */
+    .api-keys-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .api-key-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      gap: 12px;
+    }
+
+    .api-key-item:last-child { border-bottom: none; }
+
+    .api-key-radio {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .api-key-info { flex: 1; }
+    .api-key-name { font-size: 13px; font-weight: 500; }
+    .api-key-preview { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+
+    .api-key-delete {
+      padding: 6px 10px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .api-key-delete:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* Add Key Form */
+    .add-key-form {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .add-key-form input {
+      padding: 10px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .add-key-form input:focus { outline: none; border-color: #dc6b4a; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary { background: linear-gradient(135deg, #dc6b4a, #c4553a); color: white; }
+    .btn-primary:hover { background: linear-gradient(135deg, #e8836a, #dc6b4a); }
+    .btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .btn-danger { background: var(--danger); color: white; }
+
+    /* History List */
+    .history-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .history-item {
+      background: var(--bg-card);
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      padding: 14px;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .history-item-time { font-size: 11px; color: var(--text-muted); }
+    .history-item-meta { font-size: 10px; color: var(--text-muted); }
+
+    .history-item-text {
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .history-item-actions { display: flex; gap: 8px; }
+
+    .history-copy-btn {
+      padding: 6px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-copy-btn:hover { color: var(--text-primary); border-color: #dc6b4a; }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* Footer */
+    .footer {
+      padding: 10px 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #7cb97c;
+    }
+
+    .status-dot.offline { background: #d4a556; }
+
+    .version { font-size: 11px; color: var(--text-muted); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 1000;
+      animation: slideUp 0.3s;
+    }
+
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+
+    /* Hotkey Capture */
+    .hotkey-capture {
+      padding: 10px 16px;
+      background: var(--bg-hover);
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 14px;
+      min-width: 100px;
+    }
+
+    .hotkey-capture.listening {
+      border-color: #dc6b4a;
+      animation: pulse 0.5s infinite;
+    }
+
+    /* ==================== ONBOARDING WIZARD ==================== */
+    .onboarding-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .onboarding-overlay.hidden { display: none; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .onboarding-card {
+      width: 370px;
+      max-height: 85vh;
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid rgba(220, 107, 74, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onboarding-header {
+      padding: 24px 24px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .onboarding-header .ob-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 12px;
+      background: linear-gradient(135deg, #dc6b4a, #c4553a);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .onboarding-header .ob-icon i {
+      font-size: 24px;
+      color: white;
+    }
+
+    .onboarding-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .onboarding-header .ob-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .onboarding-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .ob-step-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ob-step-title i { color: #dc6b4a; font-size: 14px; }
+
+    .ob-step-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .ob-step-desc strong { color: var(--text-primary); }
+
+    .ob-choice-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .ob-choice {
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ob-choice:hover {
+      border-color: rgba(220, 107, 74, 0.4);
+      background: var(--bg-hover);
+    }
+
+    .ob-choice.selected {
+      border-color: #dc6b4a;
+      background: rgba(220, 107, 74, 0.1);
+    }
+
+    .ob-choice-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ob-choice-title .ob-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(220, 107, 74, 0.2);
+      color: #dc6b4a;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .ob-choice-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .ob-input-group {
+      margin-bottom: 16px;
+    }
+
+    .ob-input-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .ob-input-group input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .ob-input-group input:focus {
+      outline: none;
+      border-color: #dc6b4a;
+    }
+
+    .ob-info-box {
+      padding: 12px 14px;
+      background: rgba(220, 107, 74, 0.08);
+      border: 1px solid rgba(220, 107, 74, 0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .ob-info-box i { color: #dc6b4a; margin-right: 6px; }
+
+    .ob-feature-list {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 16px;
+    }
+
+    .ob-feature-list li {
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .ob-feature-list li:last-child { border-bottom: none; }
+
+    .ob-feature-list li i {
+      color: #7cb97c;
+      font-size: 12px;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .onboarding-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ob-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ob-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bg-hover);
+      transition: all 0.2s;
+    }
+
+    .ob-dot.active { background: #dc6b4a; }
+    .ob-dot.done { background: #7cb97c; }
+
+    .ob-nav-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ob-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .ob-btn-skip {
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    .ob-btn-skip:hover { color: var(--text-secondary); }
+
+    .ob-btn-next {
+      background: linear-gradient(135deg, #dc6b4a, #c4553a);
+      color: white;
+    }
+
+    .ob-btn-next:hover { background: linear-gradient(135deg, #e8836a, #dc6b4a); }
+
+    .ob-btn-back {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+  <!-- ==================== ONBOARDING WIZARD ==================== -->
+  <div class="onboarding-overlay hidden" id="onboardingOverlay">
+    <div class="onboarding-card">
+      <div class="onboarding-header">
+        <div class="ob-icon" id="obIcon"><i class="fas fa-microphone"></i></div>
+        <h2 id="obTitle">Welcome to Claude's Voice Input</h2>
+        <div class="ob-subtitle" id="obSubtitle">Let's get you set up in under a minute</div>
+      </div>
+      <div class="onboarding-body" id="obBody">
+        <!-- Steps are rendered dynamically by JS -->
+      </div>
+      <div class="onboarding-footer">
+        <div class="ob-dots" id="obDots"></div>
+        <div class="ob-nav-btns">
+          <button class="ob-btn ob-btn-back" id="obBack" style="display:none;">Back</button>
+          <button class="ob-btn ob-btn-skip" id="obSkip">Skip Setup</button>
+          <button class="ob-btn ob-btn-next" id="obNext">Get Started</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Titlebar -->
+    <div class="titlebar">
+      <div class="titlebar-title">
+        <i class="fas fa-microphone"></i>
+        Claude's Voice Input
+      </div>
+      <div class="titlebar-buttons">
+        <button class="titlebar-btn btn-minimize" id="btnMinimize"></button>
+        <button class="titlebar-btn btn-close" id="btnClose"></button>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="home">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="tab-btn" data-tab="history">
+        <i class="fas fa-history"></i>
+        <span>History</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- HOME TAB -->
+      <div class="tab-page active" id="tab-home">
+        <!-- Recording Section -->
+        <div class="recording-section">
+          <div class="mic-icon" id="micIcon">
+            <i class="fas fa-microphone"></i>
+          </div>
+          <div class="recording-timer" id="recordingTimer">0:00</div>
+          <div class="status-text" id="statusText">Ready</div>
+          <div class="hotkey-hint">
+            Hold <span class="hotkey-badge" id="hotkeyBadge">F9</span> to record
+          </div>
+          <div class="audio-level-container" id="audioLevelContainer">
+            <div class="audio-level" id="audioLevel"></div>
+          </div>
+        </div>
+
+        <!-- Transcription Preview -->
+        <div class="transcription-card">
+          <h3><i class="fas fa-file-alt"></i> Last Transcription</h3>
+          <div class="transcription-text" id="transcriptionText">
+            Transcribed text will appear here...
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="statCount">0</div>
+            <div class="stat-label">Transcriptions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statTime">0:00</div>
+            <div class="stat-label">Audio Time</div>
+          </div>
+          <div class="stat-card" id="statCostCard">
+            <div class="stat-value" id="statCost">$0.00</div>
+            <div class="stat-label" id="statCostLabel">Est. Cost</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY TAB -->
+      <div class="tab-page" id="tab-history">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 16px;">Transcription History</h2>
+          <button class="btn btn-secondary" id="btnClearHistory">
+            <i class="fas fa-trash"></i> Clear
+          </button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty-state">
+            <i class="fas fa-history"></i>
+            <p>No transcriptions yet</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div class="tab-page" id="tab-settings">
+        <!-- API Keys -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-key"></i> OpenAI API Keys
+          </div>
+          <div class="api-keys-list" id="apiKeysList"></div>
+          <div class="add-key-form">
+            <input type="text" id="newKeyName" placeholder="Key name (e.g. Personal)">
+            <input type="password" id="newKeyValue" placeholder="sk-...">
+            <button class="btn btn-primary" id="btnAddKey">
+              <i class="fas fa-plus"></i> Add API Key
+            </button>
+          </div>
+        </div>
+
+        <!-- Recording Settings -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-microphone"></i> Recording
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Hotkey
+              <small>Push-to-talk key</small>
+            </div>
+            <div class="hotkey-capture" id="hotkeyCapture">F9</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Microphone
+              <small>Input device</small>
+            </div>
+            <select class="setting-select" id="micSelect">
+              <option value="">Default</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Language
+              <small>Transcription language</small>
+            </div>
+            <select class="setting-select" id="languageSelect"></select>
+          </div>
+        </div>
+
+        <!-- Behavior Settings -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-sliders-h"></i> Behavior
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Auto Send
+              <small>Press Enter after pasting</small>
+            </div>
+            <div class="toggle" id="toggleAutoSend"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Auto Paste
+              <small>Paste into Claude (vs copy only)</small>
+            </div>
+            <div class="toggle" id="toggleAutoPaste"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Audio Feedback
+              <small>Play sounds on record</small>
+            </div>
+            <div class="toggle" id="toggleAudioFeedback"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Always on Top
+              <small>Keep window floating</small>
+            </div>
+            <div class="toggle" id="toggleAlwaysOnTop"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Start Minimized
+              <small>Start in system tray</small>
+            </div>
+            <div class="toggle" id="toggleStartMinimized"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Clear History on Exit
+              <small>Erase transcription history when app closes</small>
+            </div>
+            <div class="toggle" id="toggleClearOnExit"><div class="toggle-knob"></div></div>
+          </div>
+        </div>
+
+        <!-- Recording Mode -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-microphone-alt"></i> Recording Mode
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Mode
+              <small>How to trigger recording</small>
+            </div>
+            <select class="setting-select" id="recordingModeSelect">
+              <option value="push-to-talk">Push-to-Talk (hold key)</option>
+              <option value="tap-to-talk">Tap-to-Talk (tap key + VAD)</option>
+              <option value="wake-word">Wake Word ("Hey Claude")</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Voice Activity Detection -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-wave-square"></i> Voice Activity Detection
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Enable VAD
+              <small>Auto-stop on silence</small>
+            </div>
+            <div class="toggle" id="toggleVAD"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Sensitivity
+              <small>Voice detection threshold (lower = more sensitive)</small>
+            </div>
+            <input type="range" id="vadSensitivity" min="5" max="80" value="25" style="width: 100px;">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Silence Timeout
+              <small>Stop after silence (ms)</small>
+            </div>
+            <input type="number" class="setting-input" id="vadSilence" value="3500" min="500" max="8000" step="100">
+          </div>
+        </div>
+
+        <!-- Wake Word Settings -->
+        <div class="settings-group" id="wakeWordSettings">
+          <div class="settings-group-title">
+            <i class="fas fa-comment-dots"></i> Wake Word — "Hey Claude"
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Enable Wake Word
+              <small>Say "Hey Claude" to start recording — no API key needed</small>
+            </div>
+            <div class="toggle" id="toggleWakeWord"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Sensitivity
+              <small>Higher = more responsive, lower = fewer false triggers</small>
+            </div>
+            <input type="range" id="wakeWordSensitivity" min="0" max="100" value="50" style="width: 100px;">
+          </div>
+          <div class="setting-row" id="wakeWordStatus">
+            <div class="setting-label">
+              Status
+              <small id="wakeWordStatusText">Not initialized</small>
+            </div>
+            <button class="btn btn-primary" id="btnTestWakeWord" style="font-size: 11px; padding: 6px 12px;">
+              <i class="fas fa-play"></i> Test
+            </button>
+          </div>
+        </div>
+
+        <!-- Local Whisper -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-desktop"></i> Local Whisper (ONNX)
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Use Local Whisper
+              <small>Free, private — runs entirely on your PC, no API key needed</small>
+            </div>
+            <div class="toggle" id="toggleLocalWhisper"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Status
+              <small id="whisperEngineStatus">Not loaded</small>
+            </div>
+            <span id="whisperServerStatus" style="font-size: 12px; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: var(--text-muted);">—</span>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Model
+              <small>Larger = more accurate but slower. Downloads on first use.</small>
+            </div>
+            <select class="setting-select" id="localWhisperModel">
+              <option value="tiny">Tiny (~75MB, fastest)</option>
+              <option value="base">Base (~150MB)</option>
+              <option value="small" selected>Small (~500MB, recommended)</option>
+              <option value="medium">Medium (~1.5GB, accurate)</option>
+              <option value="large-v3">Large v3 Turbo (best quality)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Debug -->
+        <div class="settings-group">
+          <div class="settings-group-title">
+            <i class="fas fa-bug"></i> Debug
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              Debug Mode
+              <small>Show detailed logs</small>
+            </div>
+            <div class="toggle" id="toggleDebug"><div class="toggle-knob"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="connectionStatus">Ready</span>
+      </div>
+      <div class="version">v3.4.0</div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
