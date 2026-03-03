@@ -4,7 +4,7 @@
 
 Works **100% offline** with built-in local Whisper, or use the OpenAI Whisper API for cloud-powered transcription.
 
-![Version](https://img.shields.io/badge/version-3.4.0-blue)
+![Version](https://img.shields.io/badge/version-3.4.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -32,9 +32,9 @@ Works **100% offline** with built-in local Whisper, or use the OpenAI Whisper AP
 - "Use Again" button to re-paste any previous transcription
 
 ### Three Recording Modes
-- **Push-to-Talk** — Hold your hotkey (default: F9) to record, release to stop
-- **Tap-to-Talk** — Press hotkey once to start, press again to stop
-- **"Hey Claude" Wake Word** — Just say "Hey Claude" and start talking, completely hands-free
+- **Push-to-Talk** — Hold your hotkey (default: F9) to record, release to stop. VAD won't cut you off — you control when recording ends.
+- **Tap-to-Talk** — Press hotkey once to start, VAD auto-stops when you go silent (or tap again)
+- **"Hey Claude" Wake Word** — Just say "Hey Claude" and start talking, completely hands-free. VAD auto-stops after silence.
 
 ### Local Whisper (No API Key Needed)
 - Built-in ONNX-powered Whisper runs entirely on your machine
@@ -50,7 +50,8 @@ Works **100% offline** with built-in local Whisper, or use the OpenAI Whisper AP
 ### Smart Voice Activity Detection (VAD)
 - Speech-band frequency filtering (300–3000 Hz)
 - Adaptive noise floor calibration — works in any environment
-- Auto-stops recording after silence (configurable, default 3.5s)
+- Auto-stops recording after silence in tap-to-talk and wake word modes (configurable, default 3.5s)
+- **Disabled during push-to-talk** — holding the key gives you full control, pauses won't cut you off
 - Adjustable sensitivity slider
 
 ### "Hey Claude" Wake Word
@@ -84,7 +85,7 @@ Works **100% offline** with built-in local Whisper, or use the OpenAI Whisper AP
 
 ### Option A: Download the Portable EXE (Easiest)
 1. Go to [Releases](https://github.com/420247jake/claudes-voice-input/releases)
-2. Download `ClaudesVoiceInput-v3.4.0.exe`
+2. Download `ClaudesVoiceInput-v3.4.1.exe`
 3. Run it — no installation needed
 4. The onboarding wizard walks you through setup
 
@@ -126,7 +127,7 @@ You speak → SoX records audio → Whisper transcribes → Text pastes into Cla
 
 1. **Trigger recording** via hotkey or "Hey Claude" wake word
 2. **SoX** captures audio from your microphone as 16kHz WAV
-3. **VAD** monitors for speech and auto-stops after silence
+3. **VAD** monitors for speech and auto-stops after silence (tap-to-talk & wake word only — push-to-talk lets you control stop)
 4. **Whisper** (local ONNX or cloud API) transcribes the audio
 5. **Auto-paste** sends the text to Claude Desktop's input field via Win32 API
 6. Optionally **auto-sends** by simulating Enter
@@ -143,9 +144,9 @@ You speak → SoX records audio → Whisper transcribes → Text pastes into Cla
 | Hotkey | F9 | Global hotkey for recording |
 | Auto-Paste | On | Paste transcription into Claude Desktop |
 | Auto-Send | On | Press Enter after pasting |
-| VAD Enabled | On | Voice activity detection for auto-stop |
+| VAD Enabled | On | Voice activity detection for auto-stop (tap-to-talk & wake word only) |
 | VAD Sensitivity | 25 | Lower = more sensitive (range: 5–80) |
-| VAD Silence | 3.5s | Silence duration before auto-stop |
+| VAD Silence | 3.5s | Silence duration before auto-stop (does not apply in push-to-talk) |
 | Wake Word | On | "Hey Claude" background detection |
 | Wake Word Sensitivity | 0.5 | Detection threshold (0–1) |
 | Audio Feedback | On | Play sounds on record start/stop |
@@ -194,7 +195,7 @@ Build a portable Windows EXE:
 npm run build
 ```
 
-Output: `dist/ClaudesVoiceInput-v3.4.0.exe`
+Output: `dist/ClaudesVoiceInput-v3.4.1.exe`
 
 ---
 

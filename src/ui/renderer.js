@@ -655,7 +655,10 @@ function vadCheck() {
       const speechDuration = speechStartTime > 0 ? (Date.now() - speechStartTime) / 1000 : 999;
 
       // Require at least 2s of speech before allowing auto-stop
-      if (quietTime >= silenceMs && speechDuration >= 2) {
+      // In push-to-talk mode (key held), user controls stop — don't auto-stop via VAD.
+      // VAD auto-stop only applies to tap-to-talk and wake-word-triggered recordings.
+      const isPushToTalkHeld = !wakeWordTriggered && config.recordingMode !== 'tap-to-talk';
+      if (quietTime >= silenceMs && speechDuration >= 2 && !isPushToTalkHeld) {
         log(`VAD: Silence for ${quietTime}ms after ${speechDuration.toFixed(1)}s speech (lvl=${level.toFixed(1)}, thr=${threshold.toFixed(1)}), auto-stopping...`);
         ipcRenderer.send('vad-stop');
       }

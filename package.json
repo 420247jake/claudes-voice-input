@@ -1,6 +1,6 @@
 {
   "name": "claudes-voice-input",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Full-featured voice input for Claude Desktop with Whisper API + Built-in Local Whisper (no Python needed)",
   "main": "src/main.js",
   "scripts": {
